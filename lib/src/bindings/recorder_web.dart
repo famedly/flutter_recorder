@@ -120,15 +120,21 @@ class RecorderWeb extends RecorderImpl {
             (origGetUserMedia.callAsFunction(mediaDevices, constraints)
                 as JSPromise?)!;
 
-        return promise.toDart.then((stream) {
-          if (stream != null) {
-            globalContext.setProperty(
-              '_flutterRecorderActiveMediaStream'.toJS,
-              stream as JSObject,
-            );
-          }
-          return stream;
-        }).toJS;
+        // Chained on the browser's promise: a Dart future converted back with
+        // toJS cannot box a DOMException, so a refused request would throw
+        // instead of rejecting, and the caller would wait forever.
+        return promise.callMethod<JSPromise>(
+          'then'.toJS,
+          ((JSAny? stream) {
+            if (stream != null) {
+              globalContext.setProperty(
+                '_flutterRecorderActiveMediaStream'.toJS,
+                stream as JSObject,
+              );
+            }
+            return stream;
+          }).toJS,
+        );
       }
 
       mediaDevices.setProperty('getUserMedia'.toJS, customGetUserMedia.toJS);
